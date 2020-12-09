@@ -1,0 +1,11 @@
+{
+    "IpAddressProvider": "https://echo-ip.com",
+    "Profiles": [
+        {
+            "ProfileName": "My Profile Name",
+            "domain": "Domain.TLD",
+            "password": "DNSPassword",
+            "hosts": ["@", "www", "mail"]
+        }
+    ]
+}
