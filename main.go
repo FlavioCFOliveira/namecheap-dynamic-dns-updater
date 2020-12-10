@@ -5,19 +5,26 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"time"
 )
 
-var cfg Config
-var CurrentIpAddress string
+var (
+	cfg              Config
+	CurrentIpAddress string
+	logFile          *os.File
+	SuccessLogger    *log.Logger
+	ErrorLogger      *log.Logger
+)
 
 func init() {
 
 	// get configuration file path
-	configFlag := flag.String("configFlag", "config.json", "a string")
+	configFlag := flag.String("config", "config.json", "a string")
 	flag.Parse()
 
 	// Reads the file content
@@ -40,9 +47,29 @@ func init() {
 		log.Fatalf("Cannot obtain ip address. %s", err)
 	}
 	CurrentIpAddress = ip
+
+	// prepare for file logging
+	if cfg.LogToFiles {
+		if len(cfg.LogDirectory) == 0 {
+			cfg.LogDirectory, _ = os.Getwd()
+		}
+		filename := time.Now().Format("20060102.log")
+
+		logFile, err := os.OpenFile(fmt.Sprintf("%s/%s", cfg.LogDirectory, filename), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		if err != nil {
+			log.Fatalf("error opening file: %v", err)
+		}
+		wrt := io.MultiWriter(os.Stdout, logFile)
+		log.SetOutput(wrt)
+		log.SetPrefix("[INFO] ")
+	}
+
+	SuccessLogger = log.New(log.Writer(), "[SUCCESS] ", log.LstdFlags)
+	ErrorLogger = log.New(log.Writer(), "[ERROR] ", log.LstdFlags)
 }
 
 func main() {
+	defer logFile.Close()
 
 	if len(cfg.Profiles) > 0 {
 		for _, p := range cfg.Profiles {
@@ -54,9 +81,9 @@ func main() {
 				for _, h := range p.Hosts {
 					e := UpdateHost(p.Domain, h, p.Password)
 					if e == nil {
-						log.Printf("  - Host '%s' updated to %s;", h, CurrentIpAddress)
+						SuccessLogger.Printf("  - Host '%s' updated to %s;", h, CurrentIpAddress)
 					} else {
-						log.Printf("  - Error updating host '%s': %s;", h, e)
+						ErrorLogger.Printf("  - Error updating host '%s': %s;", h, e)
 					}
 				}
 
@@ -79,17 +106,19 @@ func UpdateHost(d string, h string, p string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		/*body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			log.Fatal(err)
-		}
-		resp.*/
 		log.Print(uri)
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Print(err)
+		}
+		log.Print(body)
+
 		return errors.New(fmt.Sprintf("%v - %s", resp.StatusCode, resp.Status))
 	}
 
 	return nil
 }
+
 
 func GetPublicIpAddress() (string, error) {
 

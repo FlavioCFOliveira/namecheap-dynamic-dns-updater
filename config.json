@@ -1,5 +1,7 @@
 {
     "IpAddressProvider": "https://echo-ip.com",
+    "LogToFiles": true,
+    "LogDirectory": "",
     "Profiles": [
         {
             "ProfileName": "My Profile Name",

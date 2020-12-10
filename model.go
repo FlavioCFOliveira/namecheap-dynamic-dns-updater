@@ -4,6 +4,8 @@ type (
 	Config struct {
 		IpAddressProvider string
 		Profiles          []Profile
+		LogToFiles        bool
+		LogDirectory      string
 	}
 	Profile struct {
 		ProfileName string
